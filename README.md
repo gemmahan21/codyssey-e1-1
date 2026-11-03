@@ -1,34 +1,51 @@
-### 프로젝트 개요
-  리눅스 명령어, docker 설치와 운영, Git/Github 실습
+# Linux · Docker · Git/GitHub 실습
 
-### 실행환경
+Linux 기본 명령어부터 Docker 컨테이너 운영, 웹 서버 실행, 데이터 저장, Git/GitHub 활용까지 실습한 내용을 기록한 문서입니다.
 
-```jsx
-- OS: Window 11
-	WSL (Windows Subsystem for Linux)
-- Docker: 29.9.2
-- Git: 2.53.0
-```
+## 1. 프로젝트 개요
+
+### 학습 목표
+
+- Linux 터미널의 기본 명령어와 파일 권한 이해
+- Docker 설치 및 정상 작동 여부 확인
+- Docker 이미지와 컨테이너의 생성·실행·관리
+- Dockerfile을 이용한 웹 서버 이미지 빌드
+- 포트 매핑, 바인드 마운트 및 데이터 영속성 확인
+- Git 설정 및 GitHub 저장소 업로드
+
+### 실행 환경
+
+| 구분 | 환경 및 버전 |
+| --- | --- |
+| OS | Windows 11 |
+| Linux 환경 | WSL (Windows Subsystem for Linux) |
+| Docker | 29.9.2 |
+| Git | 2.53.0 |
 
 ### 수행 항목 체크리스트
-[x] 터미널 기본 조작 (pwd/cd/mkdir/touch/cat/rm/mv)
-[x] 권한 변경 실습
-[x] Docker - 설치, 점검 / hello-world 실행
-[x] Docker 컨테이너 진입 및 명령 수행
-[x] 컨테이너 종료/유지(attach vs exec) 정리
-[x] Dockerfile 작성 및 이미지 빌드/실행
-[x] 포트 매핑 및 접속
-[x] 바인드 마운트
-[x] Docker 볼륨 영속성 검증
-[x] Git 설정 및 GitHub 업로드
+
+- [x] 터미널 기본 조작 (`pwd`, `cd`, `mkdir`, `touch`, `cat`, `rm`, `mv`)
+- [x] 권한 변경 실습
+- [x] Docker 설치 및 점검, `hello-world` 실행
+- [x] Docker 컨테이너 진입 및 명령 수행
+- [x] 컨테이너 종료·유지 차이 확인 (`attach` vs `exec`)
+- [x] Dockerfile 작성 및 이미지 빌드·실행
+- [x] 포트 매핑 및 웹 서버 접속
+- [x] 바인드 마운트
+- [x] Docker 데이터 영속성 검증
+- [x] Git 설정 및 GitHub 업로드
 
 ---
 
-#### 1. Docker 설치 및 기본 점검
+## 2. Docker 설치 및 기본 점검
 
-- version, info 확인
+### 2.1 Docker 버전 및 실행 환경 확인
 
-```jsx
+`docker --version`으로 설치된 Docker의 버전을 확인하고, `docker info`로 클라이언트와 서버의 설정 및 실행 환경을 점검했습니다.
+
+**실행 기록**
+
+```text
 $ docker --version
 Docker version 29.9.2, build a82e528
 
@@ -140,10 +157,24 @@ Server:
  Firewall Backend: iptables
 ```
 
-- docker 기본 운영 명령 수행
+**확인 결과:** Docker 클라이언트와 서버 모두 `29.9.2`로 표시되었으며, Docker Desktop의 Linux 컨테이너 환경이 확인되었습니다.
 
-```jsx
-$ docker images                                                                                                  i Info →   U  In Use
+### 2.2 Docker 기본 운영 명령어
+
+Nginx 이미지를 사용해 컨테이너를 실행하고, 이미지 목록·실행 상태·자원 사용량·로그를 확인했습니다.
+
+| 명령어 | 확인할 내용 |
+| --- | --- |
+| `docker images` | 로컬에 저장된 이미지 목록 |
+| `docker run` | 이미지를 이용해 컨테이너 생성 및 실행 |
+| `docker ps` | 실행 중인 컨테이너 목록 |
+| `docker stats` | CPU 및 메모리 등 자원 사용 현황 |
+| `docker logs` | 컨테이너의 실행 로그 |
+
+**실행 기록**
+
+```text
+$ docker images                                                                                                          i Info →   U  In Use
 IMAGE                          ID             DISK USAGE   CONTENT SIZE   EXTRA
 nginx:stable-alpine3.24-perl   2cf02ded67dc        151MB         38.2MB    U
 
@@ -200,12 +231,17 @@ $ docker logs 402
 172.17.0.1 - - [03/Nov/2026:00:11:08 +0000] "GET / HTTP/1.1" 200 896 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36" "-"
 172.17.0.1 - - [03/Nov/2026:00:11:08 +0000] "GET /favicon.ico HTTP/1.1" 404 555 "http://localhost/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36" "-"
 2026/11/03 00:11:08 [error] 30#30: *1 open() "/usr/share/nginx/html/favicon.ico" failed (2: No such file or directory), client: 172.17.0.1, server: localhost, request: "GET /favicon.ico HTTP/1.1", host: "localhost", referrer: "http://localhost/"
-
 ```
 
-- 컨테이너 실행 실습 (hello-world)
+**확인 결과:** `server` 컨테이너가 실행 중임을 확인했고, 로그에서 `/` 요청에 대한 HTTP `200` 응답을 확인했습니다.
 
-```jsx
+### 2.3 `hello-world` 컨테이너 실행
+
+Docker가 이미지를 다운로드하고 컨테이너를 실행할 수 있는지 확인하기 위해 공식 `hello-world` 이미지를 실행했습니다.
+
+**실행 기록**
+
+```text
 $ docker run hello-world
 Unable to find image 'hello-world:latest' locally
 latest: Pulling from library/hello-world
@@ -236,10 +272,19 @@ For more examples and ideas, visit:
  https://docs.docker.com/get-started/
 ```
 
-- 컨테이너 실행하고 내부 진입 후 명령 수행
-- attach/exec 차이 관찰
+**확인 결과:** `Hello from Docker!` 메시지가 출력되어 Docker 클라이언트와 데몬의 통신, 이미지 다운로드 및 컨테이너 실행이 정상적으로 진행되었음을 확인했습니다.
 
-```jsx
+---
+
+## 3. Linux 명령어 및 컨테이너 관리
+
+### 3.1 Ubuntu 컨테이너 접속과 기본 명령어
+
+Ubuntu 컨테이너 안에서 현재 위치 확인(`pwd`), 파일 목록 조회(`ls`), 경로 이동(`cd`), 문자열 출력(`echo`)을 실습했습니다. 이후 컨테이너를 재시작하고 `docker exec`로 다시 접속하여 셸을 종료했을 때 컨테이너가 유지되는지 확인했습니다.
+
+**실행 기록**
+
+```text
  $ docker run -it ubuntu bash
 
  root@27dec3d095c9:/# pwd
@@ -281,15 +326,25 @@ CONTAINER ID   IMAGE     COMMAND   CREATED         STATUS              PORTS    
 27dec3d095c9   ubuntu    "bash"    7 minutes ago   Up About a minute             cool_franklin
 ```
 
-| **구분** | **`docker attach`** | **`docker exec`** |
+### 3.2 `docker attach`와 `docker exec` 차이
+
+컨테이너에 접속하는 두 명령어는 **접속 방식과 셸 종료 시 결과**가 다릅니다.
+
+| 구분 | `docker attach` | `docker exec` |
 | --- | --- | --- |
-| **접속 대상** | 컨테이너의 **메인 프로세스(PID 1)** | 컨테이너 내부에 **새로운 프로세스** 생성 |
-| **`exit` 입력 결과** | **컨테이너 종료됨** | **컨테이너 유지됨** (쉘만 종료) |
-| **권장 사용법** | 로그 모니터링 등 단순 접속 | 디버깅 및 명령어 실행 (표준 방식) |
+| 접속 대상 | 컨테이너의 메인 프로세스(PID 1) | 컨테이너 내부에 새로운 프로세스 생성 |
+| `exit` 입력 결과 | 메인 프로세스가 종료되면 컨테이너도 종료 | 실행한 셸만 종료되며 메인 프로세스는 유지 |
+| 주된 용도 | 실행 중인 메인 프로세스 입출력 연결 | 실행 중인 컨테이너 내부 점검·명령 실행 |
 
-- 권한 실습
+**확인 결과:** `docker exec -it 27d bash`로 접속한 뒤 `exit`를 입력해도 Ubuntu 컨테이너가 실행 중(`Up`)인 상태로 유지되었습니다.
 
-```jsx
+### 3.3 파일 권한 변경 (`chmod`)
+
+Ubuntu 컨테이너에서 `test.txt` 파일을 생성하고 `chmod 700`을 적용한 전후의 파일 권한을 비교했습니다.
+
+**실행 기록**
+
+```text
 root@27dec3d095c9:~# touch test.txt
 
 root@27dec3d095c9:~# ls
@@ -304,86 +359,117 @@ root@27dec3d095c9:~# ls -l test.txt
 -rwx------ 1 root root 0 Nov  3 00:46 test.txt
 ```
 
-| **숫자** | **권한** |
+파일 권한은 읽기(`r`), 쓰기(`w`), 실행(`x`)을 숫자로 합산하여 표현합니다.
+
+| 숫자 | 권한 |
 | --- | --- |
-| 4 | r (읽기) |
-| 2 | w (쓰기) |
-| 1 | x (실행) |
-- `644`: 소유자는 읽기+쓰기(6), 그룹/기타는 읽기만(4) — 일반 파일 기본값
-- `755`: 소유자는 전부(7), 그룹/기타는 읽기+실행(5) — 디렉토리·실행 파일 기본값
-- `700`: 소유자만 전부(7), 그룹/기타는 아무 권한 없음(0) — 완전 비공개
+| 4 | `r` (읽기) |
+| 2 | `w` (쓰기) |
+| 1 | `x` (실행) |
 
-- Dockerfile 기반 웹 서버 컨테이너
-  - nginx alpine을 베이스로 사용하여 app/ 경로에 생성된 html을 복사
-  - 이미지 빌드 후 컨테이너 실행
+- `644`: 소유자 읽기·쓰기, 그룹과 기타 사용자 읽기
+- `755`: 소유자 모든 권한, 그룹과 기타 사용자 읽기·실행
+- `700`: 소유자만 모든 권한, 그룹과 기타 사용자 접근 권한 없음
 
-```jsx
+**확인 결과:** 권한이 `-rw-r--r--`에서 `-rwx------`로 바뀌어, 소유자만 읽기·쓰기·실행 권한을 갖게 되었습니다.
+
+---
+
+## 4. Dockerfile을 이용한 웹 서버 실행
+
+### 4.1 Dockerfile 작성 및 이미지 빌드
+
+Nginx Alpine 기반 이미지를 사용하고 프로젝트의 `app/` 디렉터리에 있는 웹 파일을 컨테이너의 Nginx 기본 문서 경로로 복사하도록 Dockerfile을 작성했습니다.
+
+**Dockerfile 원문**
+
+```text
 FROM nginx:stable-alpine3.24-perl
 COPY app/ /usr/share/nginx/html
 ```
 
-```jsx
+**빌드 및 실행 기록**
+
+```text
 $ docker build -t web-server .
 
 codyssey@GNIA-C401-C01:~$ docker run -d -p 80:80 --name my-server web-server
 ```
 
+`docker build`로 `web-server` 이미지를 생성하고 이를 기반으로 `my-server` 컨테이너를 백그라운드에서 실행하도록 명령했습니다.
 
-- 포트 매핑
-  - host의 80번 포트와 container의 80번 포트 매핑
-    
+### 4.2 포트 매핑
 
-```jsx
+컨테이너의 웹 서버에 호스트 컴퓨터에서 접근하기 위해 **호스트 80번 포트와 컨테이너 80번 포트**를 연결했습니다.
+
+**실행 기록**
+
+```text
 $ docker run --name server -d -p 80:80 nginx
 ```
 
+`-p 80:80`은 `호스트 포트:컨테이너 포트` 형식이며, 해당 컨테이너가 정상 실행 중일 때 호스트에서 `http://localhost`로 접근할 수 있습니다.
 
-- 바인드 마운트
-  - 호스트의 특정 파일이나 디렉토리 경로를 도커 컨테이너 내부의 경로와 직접 연결
-  - 호스트 디렉토리 절대경로[/home/codyssey/bind/html]:컨테이너 디렉토리 경로[/usr/share/nginx/html] 연결
-  - index.html 내용 업데이트 >> 연결 확인 (*하단 스크린샷 첨부)
-    
+---
 
-```jsx
-codyssey@GNIA-C401-C01:~$ docker run --name bind-nginx -d -p 80:80 -v /home/codyssey/bind/html:/usr/share/nginx/html:ro
+## 5. 컨테이너와 데이터 저장
+
+### 5.1 바인드 마운트 (Bind Mount)
+
+**바인드 마운트**는 호스트의 특정 파일 또는 디렉터리를 컨테이너 내부 경로와 직접 연결하는 방식입니다.
+
+이번 실습에서는 호스트의 `/home/codyssey/bind/html`과 컨테이너의 `/usr/share/nginx/html`을 연결한 뒤, 호스트의 `index.html` 파일을 수정하여 연결 여부를 확인하고자 했습니다.
+
+**실행 기록**
+
+```text
+codyssey@GNIA-C401-C01:~$ docker run --name bind-nginx -d -p 80:80 -v /home/codyssey/bind/html:/usr/share/nginx/html
 -d nginx
 
 codyssey@GNIA-C401-C01:~$ vi bind/html/index.html
 ```
 
+- `/home/codyssey/bind/html`: 호스트 디렉터리
+- `/usr/share/nginx/html`: 컨테이너 내부 디렉터리
 
-- 볼륨 영속성
-  - 컨테이너가 삭제되거나 종료되어도 데이터가 유지됨
-    
+**확인 사항:** 호스트에서 `index.html`을 변경했을 때 웹 서버가 변경된 파일을 제공하는지 확인하는 실습입니다.
 
-```jsx
-codyssey@GNIA-C401-C01:~$ mkdir data
+### 5.2 컨테이너 삭제 후 데이터 유지 확인
 
-codyssey@GNIA-C401-C01:~$ ls
-bind  data
+컨테이너 내부에서 연결된 디렉터리에 파일을 생성한 다음, 컨테이너를 제거하고 호스트에서도 파일을 읽을 수 있는지 확인했습니다.
 
-codyssey@GNIA-C401-C01:~$ cd data
+**실행 기록**
 
-codyssey@GNIA-C401-C01:~/data$ echo "hello" > test.txt
-
-codyssey@GNIA-C401-C01:~/data$ cat test.txt
-hello
-
+```text
 codyssey@GNIA-C401-C01:~$ docker run --name vol-ubuntu -it -v ./data:/home/data ubuntu bash
 
-root@ed34a309baab:/# cd home
+root@ed34a309baab:/# cd home/data
 
-root@ed34a309baab:/home# ls
-data  ubuntu
-
-root@ed34a309baab:/home# cd data/
-
-root@ed34a309baab:/home/data# ls
-test.txt
+root@ed34a309baab:/home/data# echo "hello" > test.txt
 
 root@ed34a309baab:/home/data# cat test.txt
 hello
+
+codyssey@GNIA-C401-C01:~$ docker stop vol-ubuntu
+
+codyssey@GNIA-C401-C01:~$ docker rm vol-ubuntu
+
+codyssey@GNIA-C401-C01:~/data$ cat test.txt
+hello
 ```
 
-- 화면 보기
-  [Screenshot](https://app.notion.com/p/E1-1-40d34c21c2668095a42dec1e5bfba238?source=copy_link)
+**확인 결과:** 컨테이너를 삭제한 후에도 호스트의 `data/test.txt`에서 `hello`가 출력되어 데이터가 유지됨을 확인했습니다.
+
+> **docker volume create [볼륨 이름]** 명령어를 통해 Docker가 관리하는 **네임드 볼륨(named volume)** 을 별도로 생성할 수 있습니다.
+
+---
+
+## 6. 실습 결과 화면
+
+실행 결과를 확인할 수 있는 스크린샷 입니다.   
+→ [Screenshot](https://app.notion.com/p/E1-1-40d34c21c2668095a42dec1e5bfba238?source=copy_link)
+
+
+## 7. 실습 정리
+
+이번 실습을 통해 Docker의 설치 상태를 확인하고 이미지 기반 컨테이너 실행 및 관리 방법을 학습했습니다. Ubuntu 컨테이너에서 Linux 기본 명령과 파일 권한 변경을 수행했고 Nginx 기반 Dockerfile 작성과 포트 매핑을 연습했습니다. 또한 호스트 디렉터리를 컨테이너에 연결하여 컨테이너 삭제 후에도 파일이 유지되는 것을 확인했습니다.
