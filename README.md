@@ -1,4 +1,7 @@
-- 실행환경
+### 프로젝트 개요
+  리눅스 명령어, docker 설치와 운영, Git/Github 실습
+
+### 실행환경
 
 ```jsx
 - OS: Window 11
@@ -7,7 +10,23 @@
 - Git: 2.53.0
 ```
 
-- Docker 설치 및 기본 점검
+### 수행 항목 체크리스트
+[x] 터미널 기본 조작 (pwd/cd/mkdir/touch/cat/rm/mv)
+[x] 권한 변경 실습
+[x] Docker - 설치, 점검 / hello-world 실행
+[x] Docker 컨테이너 진입 및 명령 수행
+[x] 컨테이너 종료/유지(attach vs exec) 정리
+[x] Dockerfile 작성 및 이미지 빌드/실행
+[x] 포트 매핑 및 접속
+[x] 바인드 마운트
+[x] Docker 볼륨 영속성 검증
+[x] Git 설정 및 GitHub 업로드
+
+---
+
+#### 1. Docker 설치 및 기본 점검
+
+- version, info 확인
 
 ```jsx
 $ docker --version
@@ -121,16 +140,22 @@ Server:
  Firewall Backend: iptables
 ```
 
-- Docker 기본 운영 명령 수행
+- docker 기본 운영 명령 수행
 
 ```jsx
 $ docker images                                                                                                  i Info →   U  In Use
 IMAGE                          ID             DISK USAGE   CONTENT SIZE   EXTRA
 nginx:stable-alpine3.24-perl   2cf02ded67dc        151MB         38.2MB    U
 
+$ docker run --name server -d -p 80:80 nginx:stable-alpine3.24-perl
+
 $ docker ps
 CONTAINER ID   IMAGE                          COMMAND                  CREATED         STATUS         PORTS                                 NAMES
 4022b4225e68   nginx:stable-alpine3.24-perl   "/docker-entrypoint.…"   9 minutes ago   Up 9 minutes   0.0.0.0:80->80/tcp, [::]:80->80/tcp   server
+
+$ docker stats
+CONTAINER ID   NAME      CPU %     MEM USAGE / LIMIT     MEM %     NET I/O        BLOCK I/O         PIDS
+4022b4225e68   server    0.00%     23.11MiB / 15.25GiB   0.15%     1.7kB / 126B   10.6MB / 8.19kB   25
 
 $ docker logs 402
 /docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
@@ -178,7 +203,7 @@ $ docker logs 402
 
 ```
 
-- 컨테이너 실행 실습
+- 컨테이너 실행 실습 (hello-world)
 
 ```jsx
 $ docker run hello-world
@@ -211,8 +236,12 @@ For more examples and ideas, visit:
  https://docs.docker.com/get-started/
 ```
 
+- 컨테이너 실행하고 내부 진입 후 명령 수행
+- attach/exec 차이 관찰
+
 ```jsx
  $ docker run -it ubuntu bash
+
  root@27dec3d095c9:/# pwd
  /
  root@27dec3d095c9:/# ls
@@ -257,6 +286,7 @@ CONTAINER ID   IMAGE     COMMAND   CREATED         STATUS              PORTS    
 | **접속 대상** | 컨테이너의 **메인 프로세스(PID 1)** | 컨테이너 내부에 **새로운 프로세스** 생성 |
 | **`exit` 입력 결과** | **컨테이너 종료됨** | **컨테이너 유지됨** (쉘만 종료) |
 | **권장 사용법** | 로그 모니터링 등 단순 접속 | 디버깅 및 명령어 실행 (표준 방식) |
+
 - 권한 실습
 
 ```jsx
@@ -283,7 +313,9 @@ root@27dec3d095c9:~# ls -l test.txt
 - `755`: 소유자는 전부(7), 그룹/기타는 읽기+실행(5) — 디렉토리·실행 파일 기본값
 - `700`: 소유자만 전부(7), 그룹/기타는 아무 권한 없음(0) — 완전 비공개
 
-- docker file 기반 웹 서버 컨테이너
+- Dockerfile 기반 웹 서버 컨테이너
+  - nginx alpine을 베이스로 사용하여 app/ 경로에 생성된 html을 복사
+  - 이미지 빌드 후 컨테이너 실행
 
 ```jsx
 FROM nginx:stable-alpine3.24-perl
@@ -296,47 +328,32 @@ $ docker build -t web-server .
 codyssey@GNIA-C401-C01:~$ docker run -d -p 80:80 --name my-server web-server
 ```
 
-!image.png
 
 - 포트 매핑
-    
-    host의 80번 포트와 container의 80번 포트 매핑
+  - host의 80번 포트와 container의 80번 포트 매핑
     
 
 ```jsx
 $ docker run --name server -d -p 80:80 nginx
 ```
 
-!image.png
 
 - 바인드 마운트
-    
-    호스트의 특정 파일이나 디렉토리 경로를 도커 컨테이너 내부의 경로와 직접 연결
+  - 호스트의 특정 파일이나 디렉토리 경로를 도커 컨테이너 내부의 경로와 직접 연결
+  - 호스트 디렉토리 절대경로[/home/codyssey/bind/html]:컨테이너 디렉토리 경로[/usr/share/nginx/html] 연결
+  - index.html 내용 업데이트 >> 연결 확인 (*하단 스크린샷 첨부)
     
 
 ```jsx
 codyssey@GNIA-C401-C01:~$ docker run --name bind-nginx -d -p 80:80 -v /home/codyssey/bind/html:/usr/share/nginx/html:ro
 -d nginx
-455edca7cc1291d03cc08986e51e0b3a5ccf470fb7b2333e6ae19a088198586b
-
-codyssey@GNIA-C401-C01:~$ mkdir bind
-codyssey@GNIA-C401-C01:~$ cd bind/
-codyssey@GNIA-C401-C01:~/bind$ mkdir html
-codyssey@GNIA-C401-C01:~/bind$ cd html
-codyssey@GNIA-C401-C01:~/bind/html$ vi index.html
 
 codyssey@GNIA-C401-C01:~$ vi bind/html/index.html
 ```
 
-!image.png
-
-!image.png
-
-!image.png
 
 - 볼륨 영속성
-    
-    컨테이너가 삭제되거나 종료되어도 데이터가 유지됨
+  - 컨테이너가 삭제되거나 종료되어도 데이터가 유지됨
     
 
 ```jsx
@@ -367,3 +384,6 @@ test.txt
 root@ed34a309baab:/home/data# cat test.txt
 hello
 ```
+
+- 화면 보기
+  [Screenshot](https://app.notion.com/p/E1-1-40d34c21c2668095a42dec1e5bfba238?source=copy_link)
