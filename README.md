@@ -434,33 +434,44 @@ codyssey@GNIA-C401-C01:~$ vi bind/html/index.html
 
 **확인 사항:** 호스트에서 `index.html`을 변경했을 때 웹 서버가 변경된 파일을 제공하는지 확인하는 실습입니다.
 
-### 5.2 컨테이너 삭제 후 데이터 유지 확인
+### 5.2 볼륨 영속성
 
-컨테이너 내부에서 연결된 디렉터리에 파일을 생성한 다음, 컨테이너를 제거하고 호스트에서도 파일을 읽을 수 있는지 확인했습니다.
+docker가 관리하는 볼륨을 생성한 다음 컨테이너를 제거하고 새로운 컨테이너와 기존 볼륨을 연결하여 파일을 읽을 수 있는지 확인했습니다.
 
 **실행 기록**
 
 ```text
-codyssey@GNIA-C401-C01:~$ docker run --name vol-ubuntu -it -v ./data:/home/data ubuntu bash
+codyssey@GNIA-C401-C01:~$ docker volume create vol-test
+vol-test
 
-root@ed34a309baab:/# cd home/data
+codyssey@GNIA-C401-C01:~$ docker volume ls
+DRIVER    VOLUME NAME
+local     vol-test
 
-root@ed34a309baab:/home/data# echo "hello" > test.txt
+codyssey@GNIA-C401-C01:~$ docker run --name vol-ubuntu -it -v vol-test:/home/data ubuntu bash
 
-root@ed34a309baab:/home/data# cat test.txt
+root@c38e53ef4641:/home/data# echo "hello" > test.txt
+
+root@c38e53ef4641:/home/data# cat test.txt
 hello
 
-codyssey@GNIA-C401-C01:~$ docker stop vol-ubuntu
-
 codyssey@GNIA-C401-C01:~$ docker rm vol-ubuntu
+vol-ubuntu
 
-codyssey@GNIA-C401-C01:~/data$ cat test.txt
+codyssey@GNIA-C401-C01:~$ docker run --name vol-ubuntu2 -it -v vol-test:/home/data ubuntu bash
+
+root@8947dc83ad57:/# cd home/data/
+
+root@8947dc83ad57:/home/data# ls
+test.txt
+
+root@8947dc83ad57:/home/data# cat test.txt
 hello
 ```
 
-**확인 결과:** 컨테이너를 삭제한 후에도 호스트의 `data/test.txt`에서 `hello`가 출력되어 데이터가 유지됨을 확인했습니다.
+**확인 결과:** 새로운 컨테이너에서도 `test.txt`에서 `hello`가 출력되어 데이터가 유지됨을 확인했습니다.
 
-> **docker volume create [볼륨 이름]** 명령어를 통해 Docker가 관리하는 **네임드 볼륨(named volume)** 을 별도로 생성할 수 있습니다.
+
 
 ---
 
@@ -469,7 +480,32 @@ hello
 실행 결과를 확인할 수 있는 스크린샷 입니다.   
 → [Screenshot](https://app.notion.com/p/E1-1-40d34c21c2668095a42dec1e5bfba238?source=copy_link)
 
+## 7. 트러블 슈팅
+### 7-1) -v ./data:/home/data에서 docker volume create
+바인드 마운트를 사용한 영속성 검증과 docker가 관리하는 named volmue을 구분하지 못하고 볼륨 영속성에서 호스트 경로를 지정했습니다.
+체크리스트를 확인하며 문제 상황을 인식하고 vol-test라는 볼륨을 생성하고 영속성 검증 진행했습니다.
 
-## 7. 실습 정리
+### 7-2) port 22 connection timed out
+개인 노트북으로 작업 내용을 git clone 진행했을 때 WSL Ubuntu에서 `git clone` 실행 시 SSH(22번 포트)와 HTTPS(443번 포트) 연결이 모두 타임아웃되었습니다.
+```jsx
+wsl --shutdown
+```
+
+wsl 재시작 이후에도 같은 문제 발생하였고 ssh(22) https(443) 포트가 모두 `Connection timed out`으로 실패했으므로 공통 네트워크 경로의 문제라고 생각하게 되었습니다.
+
+```jsx
+# 관리자 권한 PowerShell
+netsh int ip reset
+netsh winsock reset
+```
+
+Windows의 TCP/IP 관련 설정을 초기화하고, Winsock 카탈로그를 초기화했습니다.
+
+> Winsock(Windows Sockets)은 Windows 애플리케이션에서 네트워크 소켓 통신을 수행할 때 사용하는 API 계층
+
+문제는 해결되었지만 초기화 전후의 네트워크 로그가 없으므로 원인이 TCP/IP 설정인지 Winsock 카탈로그인지 WSL 네트워크 상태인지 단정할 수 없습니다.
+앞으로 비슷한 문제가 발생한다면 네트워크 전체를 초기화하기보다 문제 범위를 먼저 파악하겠습니다.
+
+## 8. 실습 정리
 
 이번 실습을 통해 Docker의 설치 상태를 확인하고 이미지 기반 컨테이너 실행 및 관리 방법을 학습했습니다. Ubuntu 컨테이너에서 Linux 기본 명령과 파일 권한 변경을 수행했고 Nginx 기반 Dockerfile 작성과 포트 매핑을 연습했습니다. 또한 호스트 디렉터리를 컨테이너에 연결하여 컨테이너 삭제 후에도 파일이 유지되는 것을 확인했습니다.
